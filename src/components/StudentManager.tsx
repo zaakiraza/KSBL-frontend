@@ -39,7 +39,7 @@ const StudentManager = () => {
     return sourceStudents.filter((student) => student.createdBy === currentUser.username || !student.createdBy);
   }, [apiStudents, currentUser, students]);
 
-  const authHeaders = () => {
+  const authHeaders = (): Record<string, string> => {
     const token = localStorage.getItem('authToken');
 
     return token
