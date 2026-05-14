@@ -7,6 +7,37 @@ import type React from 'react';
 type ComplexityLevel = 'easy' | 'medium' | 'hard';
 type MarksType = 'equal' | 'custom';
 
+interface CreateQuizResponseQuestion {
+  questionText: string;
+  options: string[];
+  correctAnswer: string;
+  marks: number;
+}
+
+interface CreateQuizResponseData {
+  teacherId: string;
+  classId: string;
+  topicName: string;
+  expiresAt: string;
+  questionCount: number;
+  marksType: MarksType;
+  equalMarksPerQuestion: number;
+  complexityLevel: ComplexityLevel;
+  maxAttempts: number;
+  status: 'draft' | 'published';
+  questions: CreateQuizResponseQuestion[];
+  _id: string;
+  createdAt: string;
+  updatedAt: string;
+  __v: number;
+}
+
+interface CreateQuizResponse {
+  status: string;
+  message: string;
+  data: CreateQuizResponseData;
+}
+
 const initialQuestions: QuizQuestion[] = [
   {
     id: '1',
@@ -17,7 +48,7 @@ const initialQuestions: QuizQuestion[] = [
   },
 ];
 
-const normalizeQuestions = (payload: unknown): QuizQuestion[] => {
+const normalizeCreatedQuizQuestions = (payload: unknown): QuizQuestion[] => {
   if (!payload || typeof payload !== 'object') {
     return [];
   }
@@ -31,52 +62,16 @@ const normalizeQuestions = (payload: unknown): QuizQuestion[] => {
         return null;
       }
 
-      const q = question as {
-        questionId?: string;
-        stem?: string;
-        type?: string;
-        options?: Array<{ optionId?: string; text?: string }>;
-        correctOptionId?: string;
-        trueFalseCorrect?: boolean;
-        blanks?: Array<{ blankId?: string; correctAnswers?: string[] }>;
-        shortAnswerReferenceAnswers?: string[];
-        rationale?: string;
-      };
-
-      const stem = q.stem?.toString() || '';
-      const type = q.type?.toString().toLowerCase() || 'mcq';
-      const remark = q.rationale?.toString() || '';
-
-      let options: string[] = [];
-      let correctAnswer = 0;
-
-      if (type === 'mcq' && Array.isArray(q.options)) {
-        options = q.options.map((opt) => opt.text?.toString() || '');
-        const correctIdx = q.options.findIndex((opt) => opt.optionId === q.correctOptionId);
-        correctAnswer = correctIdx >= 0 ? correctIdx : 0;
-      } else if (type === 'true_false') {
-        options = ['True', 'False'];
-        correctAnswer = q.trueFalseCorrect === true ? 0 : 1;
-      } else if (type === 'fitb' && Array.isArray(q.blanks) && q.blanks.length > 0) {
-        const blank = q.blanks[0];
-        const answers = Array.isArray(blank.correctAnswers) ? blank.correctAnswers : [];
-        options = answers.length > 0 ? answers : ['[blank]'];
-        correctAnswer = 0;
-      } else if (type === 'short_answer') {
-        const answers = Array.isArray(q.shortAnswerReferenceAnswers) ? q.shortAnswerReferenceAnswers : [];
-        options = answers.length > 0 ? answers : ['[short answer]'];
-        correctAnswer = 0;
-      } else {
-        options = ['Option 1', 'Option 2'];
-        correctAnswer = 0;
-      }
+      const q = question as CreateQuizResponseQuestion;
+      const options = Array.isArray(q.options) ? q.options.map((option) => option?.toString() || '') : [];
+      const correctAnswerIndex = options.findIndex((option) => option === q.correctAnswer);
 
       return {
-        id: q.questionId?.toString() || Math.random().toString(36).slice(2, 10),
-        question: stem,
+        id: Math.random().toString(36).slice(2, 10),
+        question: q.questionText?.toString() || '',
         options,
-        correctAnswer,
-        remark,
+        correctAnswer: correctAnswerIndex >= 0 ? correctAnswerIndex : 0,
+        remark: '',
       } satisfies QuizQuestion;
     })
     .filter((question): question is QuizQuestion => Boolean(question));
@@ -194,35 +189,36 @@ const QuizFactory: React.FC = () => {
         throw new Error(message || 'Quiz creation failed');
       }
 
-      const responseData = (await response.json().catch(() => ({}))) as unknown;
-      const apiQuestions = normalizeQuestions(responseData);
+      const responseData = (await response.json().catch(() => ({}))) as CreateQuizResponse;
+      const createdQuiz = responseData.data;
+      const apiQuestions = normalizeCreatedQuizQuestions(createdQuiz);
 
       if (apiQuestions.length === 0) {
         throw new Error('Quiz created, but no questions were returned.');
       }
 
-      const quizIdFromResponse = (responseData as { quizId?: string }).quizId;
+      const quizIdFromResponse = createdQuiz?._id;
 
       const newQuiz: Quiz = {
         id: quizIdFromResponse || Math.random().toString(36).slice(2, 10),
-        title: formData.topicName,
+        title: createdQuiz?.topicName || formData.topicName,
         chapter: 'API Generated',
-        topic: formData.topicName,
-        totalQuestions: apiQuestions.length,
+        topic: createdQuiz?.topicName || formData.topicName,
+        totalQuestions: createdQuiz?.questionCount || apiQuestions.length,
         duration: formData.duration,
         questions: apiQuestions,
-        createdBy: currentUser?.username || 'Anonymous',
+        createdBy: currentUser?.username || createdQuiz?.teacherId || 'Anonymous',
         published: false,
-        createdAt: new Date().toISOString(),
-        expiresAt: new Date(formData.expiresAt).toISOString(),
-        marksType: formData.marksType,
-        equalMarksPerQuestion: formData.equalMarksPerQuestion,
-        complexityLevel: formData.complexityLevel,
-        maxAttempts: formData.maxAttempts,
+        createdAt: createdQuiz?.createdAt || new Date().toISOString(),
+        expiresAt: createdQuiz?.expiresAt || new Date(formData.expiresAt).toISOString(),
+        marksType: createdQuiz?.marksType || formData.marksType,
+        equalMarksPerQuestion: createdQuiz?.equalMarksPerQuestion || formData.equalMarksPerQuestion,
+        complexityLevel: createdQuiz?.complexityLevel || formData.complexityLevel,
+        maxAttempts: createdQuiz?.maxAttempts || formData.maxAttempts,
       };
 
       addQuiz(newQuiz);
-      setSuccessMessage('Quiz created successfully. Check Manage Quizzes to publish it.');
+      setSuccessMessage(responseData.message || 'Quiz created successfully. Check Manage Quizzes to publish it.');
       setQuestions(initialQuestions);
       setPdfFile(null);
       setFormData({
