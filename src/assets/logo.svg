@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 200">
+  <defs>
+    <linearGradient id="g" x1="0" x2="1">
+      <stop offset="0" stop-color="#6d28d9" />
+      <stop offset="1" stop-color="#06b6d4" />
+    </linearGradient>
+  </defs>
+  <rect width="100%" height="100%" fill="none" />
+  <g transform="translate(30,20)">
+    <!-- simple book icon -->
+    <path d="M30 20 h80 a10 10 0 0 1 10 10 v100 a10 10 0 0 1 -10 10 h-80 z" fill="url(#g)" opacity="0.95" />
+    <path d="M110 30 v90" stroke="#ffffff" stroke-width="4" opacity="0.15" />
+    <!-- text -->
+    <g transform="translate(140,90)">
+      <text x="0" y="0" font-family="Inter, Arial, sans-serif" font-size="48" font-weight="700" fill="#0f172a">learn</text>
+      <text x="140" y="0" font-family="Inter, Arial, sans-serif" font-size="48" font-weight="700" fill="url(#g)">nova</text>
+    </g>
+  </g>
+</svg>
